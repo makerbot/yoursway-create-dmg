@@ -88,6 +88,9 @@ while test "${1:0:1}" = "-"; do
       version; exit 0;;
     --pure-version)
       pure_version; exit 0;;
+    --ds-store)
+      DS_STORE="$2"
+      shift; shift;;
     --app-drop-link)
       APPLICATION_LINK=$2
       APPLICATION_CLAUSE="set position of item \"Applications\" to {$2, $3}
@@ -156,16 +159,22 @@ if ! test -z "$VOLUME_ICON_FILE"; then
   SetFile -c icnC "$MOUNT_DIR/.VolumeIcon.icns"
 fi
 
-# run applescript
-APPLESCRIPT=$(mktemp -t createdmg)
-cat "$AUX_PATH/template.applescript" | sed -e "s/WINX/$WINX/g" -e "s/WINY/$WINY/g" -e "s/WINW/$WINW/g" -e "s/WINH/$WINH/g" -e "s/BACKGROUND_CLAUSE/$BACKGROUND_CLAUSE/g" -e "s/ICON_SIZE/$ICON_SIZE/g" | perl -pe  "s/POSITION_CLAUSE/$POSITION_CLAUSE/g" | perl -pe "s/APPLICATION_CLAUSE/$APPLICATION_CLAUSE/g" >"$APPLESCRIPT"
+if ! test -z "$DS_STORE"; then
+  echo "Copying prepared .DS_STORE file '$DS_STORE'..."
+  cp "$DS_STORE" "$MOUNT_DIR/.DS_STORE"
+else 
+  # run applescript
+  echo "Creating .DS_STORE file by running script..."
+  APPLESCRIPT=$(mktemp -t createdmg)
+  cat "$AUX_PATH/template.applescript" | sed -e "s/WINX/$WINX/g" -e "s/WINY/$WINY/g" -e "s/WINW/$WINW/g" -e "s/WINH/$WINH/g" -e "s/BACKGROUND_CLAUSE/$BACKGROUND_CLAUSE/g" -e "s/ICON_SIZE/$ICON_SIZE/g" | perl -pe  "s/POSITION_CLAUSE/$POSITION_CLAUSE/g" | perl -pe "s/APPLICATION_CLAUSE/$APPLICATION_CLAUSE/g" >"$APPLESCRIPT"
 
-echo "Running Applescript: /usr/bin/osascript \"${APPLESCRIPT}\" \"${VOLUME_NAME}\""
-"/usr/bin/osascript" "${APPLESCRIPT}" "${VOLUME_NAME}" || true
-echo "Done running the applescript..."
-sleep 4
+  echo "Running Applescript: /usr/bin/osascript \"${APPLESCRIPT}\" \"${VOLUME_NAME}\""
+  "/usr/bin/osascript" "${APPLESCRIPT}" "${VOLUME_NAME}" || true
+  echo "Done running the applescript..."
+  sleep 4
 
-rm "$APPLESCRIPT"
+  rm "$APPLESCRIPT"
+fi
 
 # make sure it's not world writeable
 echo "Fixing permissions..."
